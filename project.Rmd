@@ -1,0 +1,106 @@
+---
+title: "coursera practical machine learning” course project"
+author: "Yue Guan"
+date: "22/05/2020"
+output: html_document
+---
+
+## Exploratory Data Analysis
+
+### Data import and util packages installation
+
+
+```{r message=FALSE, warning=FALSE}
+
+
+library(dplyr)
+library(magrittr)
+library(caret)
+library(doParallel)
+library(tidyr)
+library(corrplot)
+library(randomForest)
+library(RColorBrewer)
+library(e1071)
+
+
+train_data <- read.csv("./pml-training.csv", stringsAsFactors = FALSE)
+validation_data <- read.csv("./pml-testing.csv", stringsAsFactors = FALSE)
+```
+
+
+### Train test repartition
+
+Here I use 70% of train set as training data
+
+```{r message=FALSE, warning=FALSE}
+inTrain <- createDataPartition(train_data$classe, p=0.7, list=FALSE)
+trainSet <- train_data[inTrain, ]
+testSet <- train_data[-inTrain, ]
+dim(trainSet)
+dim(testSet)
+dim(trainSet)
+```
+
+### Data clean
+
+Remove label columns, zero variables and variables which 90% or more data are N/A
+
+```{r message=FALSE, warning=FALSE}
+#Remove name and time stamp variables
+trainSet <- trainSet[, -(1:5)]
+testSet <- testSet[, -(1:5)]
+
+#find zero variables
+zeros <- nearZeroVar(trainSet)
+# remove
+trainSet <- trainSet[,-zeros]
+testSet <- testSet[,-zeros]
+
+#find na variables
+nas <- sapply(trainSet, function(val) mean(is.na(val))) > 0.9
+#remove 
+trainSet <- trainSet[, nas==FALSE]
+testSet <- testSet[, nas==FALSE]
+dim(trainSet)
+```
+
+
+
+```{r warning=FALSE, error=FALSE}
+corrMatrix <- cor(trainSet[, -54])
+corrplot(corrMatrix, method = "color", tl.cex = 0.5)
+```
+
+# Building Prediction Model  with random forest
+
+```{r warning=FALSE, error=FALSE}
+rfCtrl <- trainControl(method="cv", number = 3, verboseIter = FALSE)
+rfModel <- train(classe ~ ., data=trainSet, method="rf", trControl=rfCtrl)
+rfModel$finalModel
+```
+
+Now perform prediction on test dataset and then create confusion matrix
+```{r warning=FALSE, error=FALSE}
+# do prediction on testSet
+rfPrediction <- predict(rfModel, newdata = testSet)
+# create confusion matrix
+rfConfMat <- confusionMatrix(table(rfPrediction, testSet$classe))
+rfConfMat
+```
+
+Plot confusion matrix for prediction result
+```{r warning=FALSE, error=FALSE}
+plot( rfConfMat$table, col = rfConfMat$byClass, main=paste("Prediction Accuracy with RandomForest: ", round(rfConfMat$overall['Accuracy'], 4) ))
+```
+
+
+
+# Check RF model on validation dataset for quiz
+```{r warning=FALSE, error=FALSE}
+predictions <- predict(rfModel, newdata = validation_data)
+predictions
+
+```
+
+
