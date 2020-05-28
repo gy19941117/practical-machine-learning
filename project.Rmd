@@ -28,6 +28,22 @@ train_data <- read.csv("./pml-training.csv", stringsAsFactors = FALSE)
 validation_data <- read.csv("./pml-testing.csv", stringsAsFactors = FALSE)
 ```
 
+### Dataset description
+
+```{r message=FALSE, warning=FALSE}
+#Convert the data to a data frame table type to simplify visualization
+tbl_trainset<-tbl_df(train_data)
+class(tbl_trainset)
+tbl_trainset
+#Find out columns with 0 data inside for cleaning
+tbl_trainset %>%
+  select(everything()) %>%  
+  summarise_all(funs(sum(is.na(.)|is.null(.))))
+
+
+```
+
+
 
 ### Train test repartition
 
@@ -64,7 +80,7 @@ trainSet <- trainSet[, nas==FALSE]
 testSet <- testSet[, nas==FALSE]
 dim(trainSet)
 ```
-
+## Visualize correlation matrix
 
 
 ```{r warning=FALSE, error=FALSE}
@@ -72,7 +88,48 @@ corrMatrix <- cor(trainSet[, -54])
 corrplot(corrMatrix, method = "color", tl.cex = 0.5)
 ```
 
-# Building Prediction Model  with random forest
+# Building Prediction Model  with SVM, knn and random forest
+
+## Building Prediction Model  with SVM
+```{r}
+svmCtrl <- trainControl(method="cv", number = 3, verboseIter = FALSE)
+svmModel <- train(classe ~ ., data=trainSet, method="svmLinear", trControl=svmCtrl)
+svmModel$finalModel
+```
+Now perform prediction on test dataset and then create confusion matrix
+```{r warning=FALSE, error=FALSE}
+# do prediction on testSet
+svmPrediction <- predict(svmModel, newdata = testSet)
+# create confusion matrix
+svmConfMat <- confusionMatrix(table(svmPrediction, testSet$classe))
+svmConfMat
+```
+Plot confusion matrix for prediction result
+```{r warning=FALSE, error=FALSE}
+plot( svmConfMat$table, col = svmConfMat$byClass, main=paste("Prediction Accuracy with svm: ", round(svmConfMat$overall['Accuracy'], 4) ))
+```
+
+
+## Building Prediction Model  with K-nearest neighbor
+```{r}
+knnCtrl <- trainControl(method="cv", number = 3, verboseIter = FALSE)
+knnModel <- train(classe ~ ., data=trainSet, method="knn", trControl=knnCtrl)
+knnModel$finalModel
+```
+Now perform prediction on test dataset and then create confusion matrix
+```{r warning=FALSE, error=FALSE}
+# do prediction on testSet
+knnPrediction <- predict(knnModel, newdata = testSet)
+# create confusion matrix
+knnConfMat <- confusionMatrix(table(knnPrediction, testSet$classe))
+knnConfMat
+```
+Plot confusion matrix for prediction result
+```{r warning=FALSE, error=FALSE}
+plot( knnConfMat$table, col = knnConfMat$byClass, main=paste("Prediction Accuracy with knn: ", round(knnConfMat$overall['Accuracy'], 4) ))
+```
+
+## Building Prediction Model  with random forest
 
 ```{r warning=FALSE, error=FALSE}
 rfCtrl <- trainControl(method="cv", number = 3, verboseIter = FALSE)
@@ -93,8 +150,9 @@ Plot confusion matrix for prediction result
 ```{r warning=FALSE, error=FALSE}
 plot( rfConfMat$table, col = rfConfMat$byClass, main=paste("Prediction Accuracy with RandomForest: ", round(rfConfMat$overall['Accuracy'], 4) ))
 ```
+```
 
-
+We got a better accuracy with RandomForest model
 
 # Check RF model on validation dataset for quiz
 ```{r warning=FALSE, error=FALSE}
